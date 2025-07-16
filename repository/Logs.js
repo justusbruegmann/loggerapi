@@ -33,9 +33,11 @@ class log{
     /** * Retrieves all logs for a specific program from the database.
      *
      * @param programId {number}
+     * @param limit {number} - The maximum number of logs to retrieve.
+     * @param offset {number} - The number of logs to skip before starting to collect the result set.
      * @returns {Promise<unknown>}
      */
-    static async getLogsOffProgramm(programId) {
+    static async getLogsOffProgramm(programId, limit, offset) {
         return new Promise(async (resolve, reject) => {
             const pool = mariadb.createPool({
                 host: process.env.DATABASEURL,
@@ -48,7 +50,7 @@ class log{
             let conn;
             try {
                 conn = await pool.getConnection();
-                const result = await conn.query('SELECT * FROM logItems WHERE programId = ? order by logItems.timestamp', [programId]);
+                const result = await conn.query('SELECT * FROM logItems WHERE programId = ? order by logItems.timestamp LIMIT ? OFFSET ?', [programId,limit, offset]);
                 resolve(result); // Return the list of logs for the specified program
             } catch (err) {
                 console.error('Error fetching logs:', err);
@@ -63,10 +65,12 @@ class log{
      *
      * @param programId {number}
      * @param date {date}
+     * @param limit {number} - The maximum number of logs to retrieve.
+     * @param offset {number} - The number of logs to skip before starting to collect the result set.
      * @returns {Promise<unknown>}
      */
 
-    static async getLogsFromDate(programId, date) {
+    static async getLogsFromDate(programId, date,limit, offset) {
         return new Promise(async (resolve, reject) => {
             const pool = mariadb.createPool({
                 host: process.env.DATABASEURL,
@@ -79,7 +83,7 @@ class log{
             let conn;
             try {
                 conn = await pool.getConnection();
-                const result = await conn.query('SELECT * FROM logItems WHERE programId = ? AND timestamp >= ? order by logItems.timestamp', [programId, date]);
+                const result = await conn.query('SELECT * FROM logItems WHERE programId = ? AND timestamp >= ? order by logItems.timestamp LIMIT ? OFFSET ?', [programId, date, limit,offset]);
                 resolve(result); // Return the list of logs for the specified program from the given date
             } catch (err) {
                 console.error('Error fetching logs:', err);
@@ -90,7 +94,12 @@ class log{
         });
     }
 
-    static async getlogsoffset(programId,limit, offset) {
+    /** * Deletes a log entry from the database by its ID.
+     *
+     * @param logId {number} - The ID of the log to be deleted.
+     * @returns {Promise<unknown>}
+     */
+    async deleteLog(logId) {
         return new Promise(async (resolve, reject) => {
             const pool = mariadb.createPool({
                 host: process.env.DATABASEURL,
@@ -103,10 +112,10 @@ class log{
             let conn;
             try {
                 conn = await pool.getConnection();
-                const result = await conn.query('SELECT * FROM logItems WHERE programId = ? order by logItems.timestamp LIMIT ? OFFSET ?  ', [programId, limit, offset]);
-                resolve(result); // Return the list of logs for the specified program with pagination
+                const result = await conn.query('DELETE FROM logItems WHERE id = ?', [logId]);
+                resolve(result.affectedRows > 0); // Return true if a log was deleted
             } catch (err) {
-                console.error('Error fetching logs:', err);
+                console.error('Error deleting log:', err);
                 reject(err); // Reject the promise with the error
             } finally {
                 if (conn) await conn.end(); // Ensure the connection is closed
